@@ -1,0 +1,3 @@
+[submodule "leaflet-search"]
+	path = leaflet-search
+	url = https://github.com/stefanocudini/leaflet-search.git
