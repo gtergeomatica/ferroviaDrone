@@ -122,7 +122,7 @@ Tool per il calcolo online del tragitto (pagina demo in via di sviluppo)</h1> </
         $lat2 = $_POST["lat2"];
         $format = $_POST['format'];
         
-        $command = '/usr/bin/python3 path3d.py ' . $lon1 . ' ' . $lat1 . ' ' . $lon2 . ' ' . $lat2 . ' ' . $format . '';
+        $command = '/usr/bin/python3 /home/ubuntu/ferroviaDrone/path3d.py ' . $lon1 . ' ' . $lat1 . ' ' . $lon2 . ' ' . $lat2 . ' ' . $format . '';
         echo $command;
         
         
@@ -137,7 +137,7 @@ Tool per il calcolo online del tragitto (pagina demo in via di sviluppo)</h1> </
         #echo "<a href='download.php?file=output3d.zip'>Scarica il file</a>\n";
         #require 'download.php';
 
-        $file_path = './tmp/output3d.zip';
+        $file_path = '/home/ubuntu/ferroviaDrone/output3d.zip';
         $filename = 'output3d.zip';
         if(!file_exists($file_path)){ // file does not exist
             die('file not found');
