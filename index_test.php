@@ -1,4 +1,7 @@
-<?php  
+<?php 
+
+setlocale(LC_ALL, 'it_IT');
+
  ?> 
 <!doctype html> 
 <html> <head>
@@ -63,51 +66,7 @@ Tool per il calcolo online del tragitto (pagina demo in via di sviluppo)</h1> </
 	</div>
 </div>
 <hr>
-<form name="form1" action="index.php" method="POST">
-<div class="row">
-	<div class="col-md-12">
-		<label for="nome"> Seleziona quale punto catturare</label><br>
-		<label class="radio-inline"><input type="radio" name="georef" id="input1">Punto di partenza</label><br>
-		<label class="radio-inline"><input type="radio" name="georef" id="input2">Punto di arrivo</label>
-	</div><div class="col-md-6">
-	<h3>Punto di partenza</h3>
-	<div class="form-group">
-	<label for="lat1"> Latitudine </label> <font color="red">*</font>
-	<input type="text" name="lat1" id="lat1" class="form-control" required="">
-	</div>
-
-	<div class="form-group">
-	<label for="lon1"> Longitudine </label> <font color="red">*</font>
-	<input type="text" name="lon1" id="lon1" class="form-control" required="">
-	</div>
-
-	</div>
-	<div class="col-md-6">
-		<h3>Punto di arrivo</h3>
-		<div class="form-group">
-		<label for="lat2"> Latitudine </label> <font color="red">*</font>
-		<input type="text" name="lat2" id="lat2" class="form-control" required="">
-		</div>
-
-		<div class="form-group">
-		<label for="lon2"> Longitudine </label> <font color="red">*</font>
-		<input type="text" name="lon2" id="lon2" class="form-control" required="">
-		</div>
-	</div>
-	
-	<div class="col-md-12">
-		<h3><label for="cars">Scegli il formato di esportazione:</label></h3>
-		<select name="format">
-		  <option value="csv">CSV</option>
-		  <option value="kml">KML</option>
-		  <option value="gml">GML</option>
-		  <option value="geojson">GeoJSON</option>
-		  <option value="shape">ESRI Shapefile</option>
-		</select>
-    </div>	
-	
-
-</div> 
+<form name="form1" action="index_test.php" method="POST">
 <hr>
 <div class="row">
 <button  name = "compute" type="submit" class="btn btn-primary">Calcola percorso 3D</button>
@@ -123,19 +82,26 @@ Tool per il calcolo online del tragitto (pagina demo in via di sviluppo)</h1> </
         $format = $_POST['format'];
 		$output = array();
         
-        $command = escapeshellcmd('/usr/bin/python3 path3d.py ' . $lon1 . ' ' . $lat1 . ' ' . $lon2 . ' ' . $lat2 . ' ' . $format . '');
-        echo $command;
-        
-        
+		$intestazione='#!/bin/bash'.PHP_EOL;
+
+        $command = escapeshellcmd('/usr/bin/python3 importgrass.py ');
+        #echo $command;
+		$myfile = fopen("./tmp/script.sh", "w") or die("Unable to open file!");
+		fwrite($myfile, $intestazione);
+		fwrite($myfile, $command);
+        fclose($myfile);
+        echo exec("/bin/sh ./tmp/script.sh", $output, $return);
         #echo exec($command, $output, $return);
-		echo system($command, $return);
-		#print_r($output);
+		#echo system($command, $return);
+		print_r($output);
+		echo $output;
+		echo $return;
         
-        if (!$return) {
+/*         if (!$return) {
             echo "process ok";
         } else {
             echo "process error";
-        }
+        } */
         exit;
         #echo "<a href='download.php?file=output3d.zip'>Scarica il file</a>\n";
         #require 'download.php';
