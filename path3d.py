@@ -10,17 +10,25 @@ import psycopg2
 from os.path import basename
 from zipfile import ZipFile
 from conn import *
+import logging
+
+logging.basicConfig(
+    format='%(asctime)s\t%(levelname)s\t%(message)s',
+    filename='log/path3d.log',
+    level=logging.INFO)
+
+logging.info('*'*20 + ' NUOVA ESECUZIONE ' + '*'*20)
 
 def main():
 
     script, lon1, lat1, lon2, lat2, ffile = argv
     #script, ffile = argv
-    print('sono in def')
+    logging.info('sono in def')
     
     outdir0 = os.path.dirname(os.path.realpath(__file__))
     outdir='{}/output3d'.format(outdir0)
     #outdir = '/home/ubuntu/ferroviaDrone/output3d'
-    print(outdir)
+    logging.info('outdir: {}'.format(outdir))
     for path in os.listdir(outdir):
         full_path = os.path.join(outdir, path)
         if os.path.isfile(full_path):
@@ -34,14 +42,15 @@ def main():
         # Connect to an existing database
         #conn = psycopg2.connect(host="192.168.2.28", port="5432", dbname="city_routing", user="postgres", password="postgresnpwd", options="-c search_path=network")
         con = psycopg2.connect(host=host, port=port, dbname=dbname, user=user, password=password)
-        print("connected!")
+        logging.info("connected!")
     except:
-        print("unable to connect")
+        logging.error("unable to connect")
     
     # Open a cursor to perform database operations
     cur = con.cursor()
     
-    query = """
+    logging.info('Import input points')
+    query1 = """
         DROP TABLE IF EXISTS output2 ;
         DROP TABLE IF EXISTS output ;
         DROP INDEX IF EXISTS network_source_idx;
@@ -60,7 +69,12 @@ def main():
         VALUES (ST_PointFromText('POINT(%s %s)',4326));
         INSERT INTO input_points( geom)
         VALUES( ST_PointFromText('POINT(%s %s)',4326)); 
+        """
+    #cur.execute(query, (8.944864369323, 44.42086708903617, 8.941936154051062, 44.42486689510227))
+    cur.execute(query, (float(lon1), float(lat1), float(lon2), float(lat2)))
+    con.commit()
 
+    query2 = """
         CREATE TABLE points_over_lines
         AS SELECT a.id,ST_ClosestPoint(ST_Union(b.the_geom), a.geom)::geometry(POINT,4326) AS geom
         FROM input_points a, network.ways b
@@ -121,9 +135,6 @@ def main():
         INNER JOIN lines_split b ON (a.edge = b.idk) ORDER BY seq;		
     """
     
-    #cur.execute(query, (8.944864369323, 44.42086708903617, 8.941936154051062, 44.42486689510227))
-    cur.execute(query, (float(lon1), float(lat1), float(lon2), float(lat2)))
-    con.commit()
     cur.close()
     con.close()
     
@@ -245,3 +256,5 @@ def main():
 
 if __name__ == "__main__":
 	main()
+
+logging.info('*'*20 + ' ESCO NORMALMENTE' + '*'*20) 

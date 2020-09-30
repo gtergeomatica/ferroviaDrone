@@ -4,3 +4,4 @@ conn.py
 data.osm
 
 tmp/*
+log/*
