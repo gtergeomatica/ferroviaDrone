@@ -14,7 +14,7 @@ import logging
 
 logging.basicConfig(
     format='%(asctime)s\t%(levelname)s\t%(message)s',
-    filename='log/path3d.log',
+    #filename='log/path3d.log',   #mancano permessi
     level=logging.INFO)
 
 logging.info('*'*20 + ' NUOVA ESECUZIONE ' + '*'*20)
@@ -101,7 +101,18 @@ def main():
         SELECT b.id, ST_snap(ST_Union(b.geom),a.geom, 0.000001)::geometry(POINT,4326) AS geom 
         FROM ways_densified a, points_over_lines b
         GROUP BY a.geom, b.geom, b.id;
+        """
+    try:
+        cur.execute(query2)
+        con.commit()
+    except psycopg2.Error as e:
+        logging.error('Unable to process points')
+        logging.error(e.pgerror)
+        os.exit(1)
 
+      
+    logging.info('Query 3')
+    query3 = """
 
         CREATE TABLE lines_split AS
         SELECT a.osm_id, (ST_Dump(ST_split(st_segmentize(a.the_geom,0.00001),ST_Union(b.geom)))).geom::geometry(LINESTRING,4326) AS geom 
@@ -134,27 +145,25 @@ def main():
                          (SELECT idk FROM points_snapped p WHERE p.id = 2),
                           false) AS a  
         INNER JOIN lines_split b ON (a.edge = b.idk) ORDER BY seq;
-
-        CREATE TABLE output2 AS
-        SELECT a.seq, a.node, a.edge, a.cost, b.geom
-        FROM pgr_dijkstra('SELECT idk as id, source, target, cost FROM lines_split',
-                         (SELECT idk FROM points_snapped p WHERE p.id = 2),
-                         (SELECT idk FROM points_snapped p WHERE p.id = 1),
-                          false) AS a  
-        INNER JOIN lines_split b ON (a.edge = b.idk) ORDER BY seq;		
+	
     """
     try:
-        cur.execute(query2, (float(lon1), float(lat1), float(lon2), float(lat2)))
+        cur.execute(query3)
         con.commit()
     except psycopg2.Error as e:
-        logging.error('Unable to ... query2')
+        logging.error('Unable to execute query3')
         logging.error(e.pgerror)
+        os.exit(1)
+    
+    if cur.rowcount == 0:
+        logging.error('Empty output table')
         os.exit(1)
 
     cur.close()
     con.close()
     logging.info('Connection closed!')
-
+    
+    logging.info('Ogr2ogr conversion')
     #exit()
     comando_ogr='/usr/bin/ogr2ogr -f GPKG ./tmp/output.gpkg PG:"host={} port={} dbname={} user={} password={}" -sql "SELECT * from public.output" -overwrite'.format(host, port, dbname, user, password)
     #print(comando_ogr)
