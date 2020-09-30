@@ -43,9 +43,11 @@ def main():
         #conn = psycopg2.connect(host="192.168.2.28", port="5432", dbname="city_routing", user="postgres", password="postgresnpwd", options="-c search_path=network")
         con = psycopg2.connect(host=host, port=port, dbname=dbname, user=user, password=password)
         logging.info("connected!")
-    except:
+    except psycopg2.Error as e:
         logging.error("unable to connect")
-    
+        logging.error(e.pgerror)
+        os.exit(1)
+   
     # Open a cursor to perform database operations
     cur = con.cursor()
     
@@ -70,10 +72,17 @@ def main():
         INSERT INTO input_points( geom)
         VALUES( ST_PointFromText('POINT(%s %s)',4326)); 
         """
-    #cur.execute(query, (8.944864369323, 44.42086708903617, 8.941936154051062, 44.42486689510227))
-    cur.execute(query, (float(lon1), float(lat1), float(lon2), float(lat2)))
-    con.commit()
+    try:
+        #cur.execute(query, (8.944864369323, 44.42086708903617, 8.941936154051062, 44.42486689510227))
+        cur.execute(query1, (float(lon1), float(lat1), float(lon2), float(lat2)))
+        con.commit()
+    except psycopg2.Error as e:
+        logging.error('Unable to import input points')
+        logging.error(e.pgerror)
+        os.exit(1)
 
+      
+    logging.info('Query 2')
     query2 = """
         CREATE TABLE points_over_lines
         AS SELECT a.id,ST_ClosestPoint(ST_Union(b.the_geom), a.geom)::geometry(POINT,4326) AS geom
@@ -134,10 +143,18 @@ def main():
                           false) AS a  
         INNER JOIN lines_split b ON (a.edge = b.idk) ORDER BY seq;		
     """
-    
+    try:
+        cur.execute(query2, (float(lon1), float(lat1), float(lon2), float(lat2)))
+        con.commit()
+    except psycopg2.Error as e:
+        logging.error('Unable to ... query2')
+        logging.error(e.pgerror)
+        os.exit(1)
+
     cur.close()
     con.close()
-    
+    logging.info('Connection closed!')
+
     #exit()
     comando_ogr='/usr/bin/ogr2ogr -f GPKG ./tmp/output.gpkg PG:"host={} port={} dbname={} user={} password={}" -sql "SELECT * from public.output" -overwrite'.format(host, port, dbname, user, password)
     #print(comando_ogr)
