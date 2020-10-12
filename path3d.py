@@ -15,42 +15,44 @@ import logging
 logging.basicConfig(
     format='%(asctime)s\t%(levelname)s\t%(message)s',
     #filename='log/path3d.log',   #mancano permessi
-    level=logging.INFO)
+    level=logging.DEBUG)
 
 logging.info('*'*20 + ' NUOVA ESECUZIONE ' + '*'*20)
 
 def main():
 
     script, lon1, lat1, lon2, lat2, ffile = argv
-    #script, ffile = argv
-    logging.info('sono in def')
+    logging.debug('sono in def')
+    logging.debug('START = lon1 {0}, lat1 {1}'.format(lon1, lat1))
+    logging.debug('STOP = lon2 {0}, lat2 {1})'.format(lon2, lat2))
     
+    
+    # Define output directories
     outdir0 = os.path.dirname(os.path.realpath(__file__))
     outdir='{}/output3d'.format(outdir0)
-    #outdir = '/home/ubuntu/ferroviaDrone/output3d'
-    logging.info('outdir: {}'.format(outdir))
+    
+    # Remove existing file in outdir
     for path in os.listdir(outdir):
         full_path = os.path.join(outdir, path)
         if os.path.isfile(full_path):
             os.remove(full_path)
-    #print('file eliminati')
-    #per far si che elimini lo zip forse bisogna dare 777 a tutta la cartella ferroviaDrone
+    # Remove previously created zip file
     if os.path.isfile('{}/tmp/output3d.zip'.format(outdir0)):       
         os.remove('{}/tmp/output3d.zip'.format(outdir0))
 
     try:
         # Connect to an existing database
-        #conn = psycopg2.connect(host="192.168.2.28", port="5432", dbname="city_routing", user="postgres", password="postgresnpwd", options="-c search_path=network")
         con = psycopg2.connect(host=host, port=port, dbname=dbname, user=user, password=password)
         logging.info("connected!")
     except psycopg2.Error as e:
         logging.error("unable to connect")
         logging.error(e.pgerror)
-        os.exit(1)
+        os._exit(1)
    
     # Open a cursor to perform database operations
     cur = con.cursor()
     
+    # First DB query
     logging.info('Import input points')
     query1 = """
         DROP TABLE IF EXISTS output2 ;
@@ -73,15 +75,15 @@ def main():
         VALUES( ST_PointFromText('POINT(%s %s)',4326)); 
         """
     try:
-        #cur.execute(query, (8.944864369323, 44.42086708903617, 8.941936154051062, 44.42486689510227))
+        # Execute the first query passing arguments
         cur.execute(query1, (float(lon1), float(lat1), float(lon2), float(lat2)))
         con.commit()
     except psycopg2.Error as e:
-        logging.error('Unable to import input points')
+        logging.error('Query 1 failed- Unable to import input points')
         logging.error(e.pgerror)
-        os.exit(1)
+        os._exit(1)
 
-      
+    # Second DB query 
     logging.info('Query 2')
     query2 = """
         CREATE TABLE points_over_lines
@@ -103,14 +105,15 @@ def main():
         GROUP BY a.geom, b.geom, b.id;
         """
     try:
+        # Execute the second query
         cur.execute(query2)
         con.commit()
     except psycopg2.Error as e:
-        logging.error('Unable to process points')
+        logging.error('Query 2 failed!: Unable to snap points to ways')
         logging.error(e.pgerror)
-        os.exit(1)
+        os._exit(1)
 
-      
+    # Third DB query  
     logging.info('Query 3')
     query3 = """
 
@@ -133,10 +136,16 @@ def main():
 
         ALTER TABLE points_snapped add column idk integer;
 
+        --UPDATE points_snapped p
+        --SET idk = v.id
+        --FROM lines_split_vertices_pgr v
+        --WHERE ST_Contains( v.the_geom, p.geom );
+        
         UPDATE points_snapped p
-        SET idk = v.id
-        FROM lines_split_vertices_pgr v
-        WHERE ST_Contains( v.the_geom, p.geom );
+        SET idk = (
+            SELECT id 
+            FROM lines_split_vertices_pgr v
+            ORDER BY p.geom <-> v.the_geom LIMIT 1);
 
         CREATE TABLE output AS
         SELECT a.seq, a.node, a.edge, a.cost, b.geom
@@ -148,113 +157,96 @@ def main():
 	
     """
     try:
+        # Execute the third query
         cur.execute(query3)
         con.commit()
     except psycopg2.Error as e:
-        logging.error('Unable to execute query3')
+        logging.error('Query3 failed! - unable to find route')
         logging.error(e.pgerror)
-        os.exit(1)
+        os._exit(1)
     
+    # Check if the output DB table is empty
     if cur.rowcount == 0:
         logging.error('Empty output table')
-        os.exit(1)
-
+        os._exit(1)
+    else:
+       logging.info('numero di rige in output {}'.format(cur.rowcount))
+    # Close cursor and DB connection
     cur.close()
     con.close()
     logging.info('Connection closed!')
     
+    # Save DB output table as geopackage (due to bug in grass connection to DB Postgis )
     logging.info('Ogr2ogr conversion')
-    #exit()
-    comando_ogr='/usr/bin/ogr2ogr -f GPKG ./tmp/output.gpkg PG:"host={} port={} dbname={} user={} password={}" -sql "SELECT * from public.output" -overwrite'.format(host, port, dbname, user, password)
-    #print(comando_ogr)
+    comando_ogr='/usr/bin/ogr2ogr -f GPKG {}/tmp/output.gpkg PG:"host={} port={} dbname={} user={} password={}" -sql "SELECT * from public.output" -overwrite'.format(outdir0, host, port, dbname, user, password)
     os.system(comando_ogr)
-    #exit()
     
-    #temporary map names
+    # Define temporary maps name
     global tmp
     tmp = {}
-
     processid = "{:.2f}".format(time.time())
-    print(processid)
     processid = processid.replace(".", "_")
     tmp["line3d"] = "line3d_" + processid
     tmp["point3d"] = "point3d_" + processid
-    # define GRASS Database
-    # add your path to grassdata (GRASS GIS database) directory
-    #gisdb = os.path.join(os.path.expanduser("~"), "grassdata")
-    # the following path is the default path on MS Windows
+    
+    # Define GRASS Database
     gisdb = os.path.join(os.path.expanduser("~"), "/home/ubuntu/grass_DB")
 
-    print(gisdb)
-    # specify (existing) Location and Mapset
+    # Specify (existing) Location and Mapset
     location = "wgs84"
-    mapset = "casella"
+    mapset = "ferroviadrone"
 
-    #grass7bin = r'C:\OSGeo4W64\bin\grass78.bat'
-    grass7bin = '/usr/bin/grass'
-
-    # query GRASS GIS itself for its GISBASE
+    # Define path to the GRASS GIS launch script
+    grass7bin = 'grass78'
+    # query GRASS GIS itself for its GISBASE (not used since it doesn't work from php)
     # startcmd = [grass7bin, '--config', 'path']
-    # try:
-        # p = subprocess.Popen(startcmd, shell=False,
-                             # stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # out, err = p.communicate()
-        # print(out)
-        # out = out.decode('utf-8')
-        # print(out)
-    # except OSError as error:
-        # sys.exit("ERROR: Cannot find GRASS GIS start script"
-                 # " {cmd}: {error}".format(cmd=startcmd[0], error=error))
+    # p = subprocess.Popen(startcmd, shell=False,
+                         # stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # out, err = p.communicate()
     # if p.returncode != 0:
-        # sys.exit("ERROR: Issues running GRASS GIS start script"
-                 # " {cmd}: {error}"
-                 # .format(cmd=' '.join(startcmd), error=err))
-    # gisbase = out.strip(os.linesep)
-    # print(gisbase)
-    
-    
-    # set GISBASE environment variable
-    gisbase = '/usr/lib/grass74'
+        # print >>sys.stderr, "ERROR: Cannot find GRASS GIS 7 start script (%s)" % startcmd
+        # sys.exit(-1)
+    # gisbase = out.strip(b'\n\r')
+    # gisbase = str(gisbase, 'utf-8')
+      
+    # Set GISBASE environment variable
+    gisbase = '/usr/local/grass78'
     os.environ['GISBASE'] = gisbase
+    
+    #os.environ['PATH'] += os.pathsep + os.path.join(gisbase, 'extrabin')
+    # Add path to GRASS addons (not needed in this case)
+    #home = os.path.expanduser("~")
+    #os.environ['PATH'] += os.pathsep + os.path.join(home, '.grass7', 'addons', 'scripts')
+    
+    # Set HOME environment variable (required to launch the python script from web --> php server does not find home location)
+    home = '/home/ubuntu/'
+    os.environ['HOME'] = home
 
-    # define GRASS-Python environment
+    # Define GRASS-Python environment
     grass_pydir = os.path.join(gisbase, "etc", "python")
     sys.path.append(grass_pydir)
     
-    #print(grass_pydir)
-
     # import (some) GRASS Python bindings
     import grass.script as gscript
     import grass.script.setup as gsetup
-    
-    print("init" in dir(grass.script.setup))
-    print(gisbase)
-    print(gisdb)
-    #print(location)
-    print(mapset)
-    print(mapset)
-    print('ok')
 
-    # launch session
+    # Launch grass session
     rcfile = gsetup.init(gisbase, gisdb, location, mapset)
     
-    print('session ok')
-
-    # example calls
-    #gscript.message('Current GRASS GIS 7 environment:')
-    print (gscript.gisenv())
-    
-    #import data from postgresDB --> sql query result
+    # Define main input and output map
     line2d = 'line2d'
-    dem = 'dem_20'
+    dem = 'dem20'
     
-    #set computational region to dem
+    # Set computational region to dem map
     gscript.run_command('g.region', raster=dem, flags='ap')
     
+    # Import the geopackage resulting from the DB query
     gscript.run_command('v.in.ogr', input='{}/tmp/output.gpkg'.format(outdir0), layer='sql_statement', output=line2d, type='line', overwrite=True)
     
+    # Convert 2D geometrie to 3D
     gscript.run_command('v.drape', input=line2d, type='line', output=tmp["line3d"], elevation=dem, method='bilinear')
     
+    # Export the 3D feature depending on required format
     if ffile == 'csv':
         gscript.run_command('v.to.points', input=tmp["line3d"], type='line', output=tmp["point3d"], use='vertex')
         gscript.run_command('v.out.ascii', input=tmp["point3d"], type='point', output='{}/output3d.csv'.format(outdir), format='point', separator='comma', flags='c', overwrite=True)
@@ -266,16 +258,18 @@ def main():
         gscript.run_command('v.out.ogr', input=tmp["line3d"], output='{}/output3d.geojson'.format(outdir), format='GeoJSON', overwrite=True)
     else:
         gscript.run_command('v.out.ogr', input=tmp["line3d"], output='{}/output3d.shp'.format(outdir), format='ESRI_Shapefile', overwrite=True)
-        
+    
+    # Create a zip file with the final output
     with ZipFile('{}/tmp/output3d.zip'.format(outdir0), 'w') as zipObj:
         # Iterate over all the files in directory
         for folderName, subfolders, filenames in os.walk(outdir):
            for filename in filenames:
-               #create complete filepath of file in directory
+               # Create complete filepath of file in directory
                filePath = os.path.join(folderName, filename)
                # Add file to zip
                zipObj.write(filePath, basename(filePath))
-        
+               
+    # Remove unuseful file like the geopackage adn the tmp file from the grass mapset    
     os.remove('{}/tmp/output.gpkg'.format(outdir0))
     gscript.run_command("g.remove", flags="f", type='raster,vector', name=",".join([tmp[m] for m in tmp.keys()]), quiet=True)
     

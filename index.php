@@ -1,4 +1,4 @@
-<?php  
+<?php
  ?> 
 <!doctype html> 
 <html> <head>
@@ -22,6 +22,8 @@ integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706t
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css" 
 integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/" crossorigin="anonymous">
     <link rel="stylesheet" href="https://unpkg.com/bootstrap-table@1.15.4/dist/bootstrap-table.min.css">
+	<script src="https://code.jquery.com/jquery-3.3.1.min.js" integrity="sha256-FgpCb/KJQlLNfOu91ta32o/NMZxltwRo8QtmkMRdAu8=" 
+crossorigin="anonymous"></script>
 	 
 <style>
  #map
@@ -55,7 +57,6 @@ html, body {
 <body> 
 <div class="container">
 <div class="row"> <div class="col-sm-12"> <h1>
-<img src="./img/drone.png" alt="Logo" width="5%"--> 
 Tool per il calcolo online del tragitto (pagina demo in via di sviluppo)</h1> </div> </div>
 <div class="row">
 	<div class="col-md-12">
@@ -63,7 +64,7 @@ Tool per il calcolo online del tragitto (pagina demo in via di sviluppo)</h1> </
 	</div>
 </div>
 <hr>
-<form name="form1" action="index.php" method="POST">
+<form name="form1" action="index.php" method="POST" id="submit_form">
 <div class="row">
 	<div class="col-md-12">
 		<label for="nome"> Seleziona quale punto catturare</label><br>
@@ -110,57 +111,78 @@ Tool per il calcolo online del tragitto (pagina demo in via di sviluppo)</h1> </
 </div> 
 <hr>
 <div class="row">
-<button  name = "compute" type="submit" class="btn btn-primary">Calcola percorso 3D</button>
+<button  name ="compute" type="submit" class="btn btn-primary" id="process_button">Calcola percorso 3D</button> 
 </div> 
-</form> 
+</form>
+<hr>
+<div class="row">
+	<img src="./img/Loadingsome.gif" id="gif" style="display: block; margin: 0 auto; width: 150px; visibility: hidden;">
+<div class="row">
   
 <?php
     if(isset($_POST["compute"])){
+		/* $message = "Attendere la fine del processo";
+		echo $message; */
         $lon1 = $_POST["lon1"];
         $lat1 = $_POST["lat1"];
         $lon2 = $_POST["lon2"];
         $lat2 = $_POST["lat2"];
         $format = $_POST['format'];
 		$output = array();
+		
+        # Run the python script passin arguments taken from the html form 
+        $command = escapeshellcmd('/usr/bin/python3 path3d.py ' . $lon1 . ' ' . $lat1 . ' ' . $lon2 . ' ' . $lat2 . ' ' . $format . '');        
+        echo exec($command, $output, $return);
         
-        $command = escapeshellcmd('/usr/bin/python3 path3d.py ' . $lon1 . ' ' . $lat1 . ' ' . $lon2 . ' ' . $lat2 . ' ' . $format . '');
-        echo $command;
-        
-        
-        #echo exec($command, $output, $return);
-		echo system($command, $return);
-		#print_r($output);
-        
+		# If the run is succesful the ouput zip file is downloaded
         if (!$return) {
+/* ?>
+<script type="text/javascript">
+		alert('pippo');
+</script>
+
+<?php */		
             echo "process ok";
+			$file_path = './tmp/output3d.zip';
+			$filename = 'output3d.zip';
+			if (headers_sent()) {
+				echo 'HTTP header already sent';
+			} else {
+				if (!is_file($file_path)) {
+					header($_SERVER['SERVER_PROTOCOL'].' 404 Not Found');
+					echo 'File not found';
+				} else if (!is_readable($file_path)) {
+					header($_SERVER['SERVER_PROTOCOL'].' 403 Forbidden');
+					echo 'File not readable';
+				}
+				else {
+					echo 'finito!';
+					header("Content-type: application/zip");
+					header("Content-Disposition: attachment; filename=$filename");
+					ob_clean();
+					flush();
+					readfile("$file_path");
+					/* if (unlink("$file_path")){
+
+						echo 'download finito';
+					}; */
+				}
+			}
         } else {
             echo "process error";
         }
-        exit;
-        #echo "<a href='download.php?file=output3d.zip'>Scarica il file</a>\n";
-        #require 'download.php';
-
-        $file_path = './tmp/output3d.zip';
-        $filename = 'output3d.zip';
-        if(!file_exists($file_path)){ // file does not exist
-            die('file not found');
-        } else {
-            header("Content-type: application/zip"); 
-            header("Content-Disposition: attachment; filename=$filename");
-            header("Content-length: " . filesize($filename));
-            ob_clean();
-            flush();
-            readfile("$file_path");
-        }
-    }
+		
+	}
     else{
     }
-?>   
+?>  
   
-  <div class="row">
-		
-
-
+</div>
+<!--script type="text/javascript">
+	$(document).ready(function(){
+		$('#gif').css('visibility', 'hidden');
+	});
+</script-->
 <!-- Footer -->
 <footer class="page-footer font-small blue pt-4">
   <!-- Footer Links -->
@@ -199,7 +221,12 @@ integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv
 <script src="https://unpkg.com/leaflet.featuregroup.subgroup"></script> 
 <!--script src="./leaflet-realtime/dist/leaflet-realtime.js"></script> 
 <script src="./index_functions.js"></script--> 
-<!--script src="./index.js"></script--> 
+<!--script src="./index.js"></script-->	
+<script type="text/javascript">
+    $('#submit_form').submit(function() {
+		$('#gif').css('visibility', 'visible');
+	});
+</script>
 <script> 
 
 var map = L.map('map').setView([42, 12], 5);;

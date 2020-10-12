@@ -25,6 +25,7 @@ integrity="sha384-GJzZqFGwb1QTTN6wy59ffF1BuGJpLSa9DkKMp0DgiMDm4iYMj70gZWKYbI706t
     <link rel="stylesheet" href="https://use.fontawesome.com/releases/v5.6.3/css/all.css" 
 integrity="sha384-UHRtZLI+pbxtHCWp1t77Bi1L4ZtiqrqD80Kn4Z8NTSRyMA2Fd33n5dQ8lWUE00s/" crossorigin="anonymous">
     <link rel="stylesheet" href="https://unpkg.com/bootstrap-table@1.15.4/dist/bootstrap-table.min.css">
+	
 	 
 <style>
  #map
@@ -66,25 +67,29 @@ Tool per il calcolo online del tragitto (pagina demo in via di sviluppo)</h1> </
 	</div>
 </div>
 <hr>
-<form name="form1" action="index_test.php" method="POST">
+<form name="form1" action="index_test.php" method="POST" id="login_form">
 <hr>
 <div class="row">
 <button  name = "compute" type="submit" class="btn btn-primary">Calcola percorso 3D</button>
 </div> 
-</form> 
+</form>
+<div class="row">
+	<img src="./img/Loadingsome.gif" id="gif" style="display: block; margin: 0 auto; width: 100px; visibility: hidden;">
+<div class="row">
   
 <?php
     if(isset($_POST["compute"])){
-        $lon1 = $_POST["lon1"];
+		#echo 'attendere..';
+        /* $lon1 = $_POST["lon1"];
         $lat1 = $_POST["lat1"];
         $lon2 = $_POST["lon2"];
         $lat2 = $_POST["lat2"];
-        $format = $_POST['format'];
+        $format = $_POST['format']; */
 		$output = array();
         
 		$intestazione='#!/bin/bash'.PHP_EOL;
 
-        $command = escapeshellcmd('/usr/bin/python3 importgrass.py ');
+        $command = escapeshellcmd('/usr/bin/python3 importgrass78.py ');
         #echo $command;
 		$myfile = fopen("./tmp/script.sh", "w") or die("Unable to open file!");
 		fwrite($myfile, $intestazione);
@@ -102,22 +107,33 @@ Tool per il calcolo online del tragitto (pagina demo in via di sviluppo)</h1> </
         } else {
             echo "process error";
         } */
-        exit;
+        #exit;
         #echo "<a href='download.php?file=output3d.zip'>Scarica il file</a>\n";
         #require 'download.php';
 
         $file_path = './tmp/output3d.zip';
         $filename = 'output3d.zip';
-        if(!file_exists($file_path)){ // file does not exist
-            die('file not found');
-        } else {
-            header("Content-type: application/zip"); 
-            header("Content-Disposition: attachment; filename=$filename");
-            header("Content-length: " . filesize($filename));
-            ob_clean();
-            flush();
-            readfile("$file_path");
-        }
+/* 		if (headers_sent()) {
+			echo 'HTTP header already sent';
+		} else { */
+		if (!is_file($file_path)) {
+			header($_SERVER['SERVER_PROTOCOL'].' 404 Not Found');
+			echo 'File not found';
+		} else if (!is_readable($file_path)) {
+			header($_SERVER['SERVER_PROTOCOL'].' 403 Forbidden');
+			echo 'File not readable';
+		}
+		else {
+			header("Content-type: application/zip");
+			#header("Content-Transfer-Encoding: Binary");
+			header("Content-Disposition: attachment; filename=$filename");
+			#header("Content-length: " . filesize($filename));
+			ob_clean();
+			flush();
+			readfile("$file_path");
+			header("Refresh:0");
+		}
+		#}
     }
     else{
     }
@@ -166,6 +182,11 @@ integrity="sha384-B0UglyR+jN6CkvvICOB2joaf5I4l3gm9GU6Hc1og6Ls7i6U/mkkaduKaBhlAXv
 <!--script src="./leaflet-realtime/dist/leaflet-realtime.js"></script> 
 <script src="./index_functions.js"></script--> 
 <!--script src="./index.js"></script--> 
+<script type="text/javascript">
+    $('#login_form').submit(function() {
+		$('#gif').css('visibility', 'visible');
+	});
+</script>
 <script> 
 
 var map = L.map('map').setView([42, 12], 5);;

@@ -17,37 +17,35 @@ def main():
     location = "wgs84"
     mapset = "casella"
     print('1')
-    #grass7bin = r'C:\OSGeo4W64\bin\grass78.bat'
-    grass7bin = '/usr/bin/grass'
+    grass7bin = 'grass78'
 
     # query GRASS GIS itself for its GISBASE
     startcmd = [grass7bin, '--config', 'path']
-    # print(startcmd)
-    # try:
-        # p = subprocess.Popen(startcmd, shell=False,
-                             # stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-        # out, err = p.communicate()
-        # print(out)
-        # out = out.decode('utf-8')
-        # print(out)
-    # except OSError as error:
-        # sys.exit("ERROR: Cannot find GRASS GIS start script"
-                 # " {cmd}: {error}".format(cmd=startcmd[0], error=error))
-    # if p.returncode != 0:
-        # sys.exit("ERROR: Issues running GRASS GIS start script"
-                # " {cmd}: {error}"
-                 # .format(cmd=' '.join(startcmd), error=err))
-    # gisbase = out.strip(os.linesep)
-    #print(gisbase)
     print('2')
     
     # set GISBASE environment variable
-    gisbase = '/usr/lib/grass74'
+    gisbase = '/usr/local/grass78'
+    # p = subprocess.Popen(startcmd, shell=False,
+                     # stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    # out, err = p.communicate()
+    # if p.returncode != 0:
+        # print >>sys.stderr, "ERROR: Cannot find GRASS GIS 7 start script (%s)" % startcmd
+        # sys.exit(-1)
+    # gisbase = out.strip('\n\r')
+    
     os.environ['GISBASE'] = gisbase
+    os.environ['PATH'] += os.pathsep + os.path.join(gisbase, 'extrabin')
+    # add path to GRASS addons
+    home = os.path.expanduser("~")
+    print('la mia{}'.format(home))
+    os.environ['PATH'] += os.pathsep + os.path.join(home, '.grass7', 'addons', 'scripts')
+    print(os.environ['PATH'])
 
     # define GRASS-Python environment
-    grass_pydir = os.path.join(gisbase, "etc", "python")
-    sys.path.append(grass_pydir)
+    gpydir = os.path.join(gisbase, "etc", "python")
+    sys.path.append(gpydir)
+    
+    os.environ['GISDBASE'] = gisdb
     
     #print(grass_pydir)
 
