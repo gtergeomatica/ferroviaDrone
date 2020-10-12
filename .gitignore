@@ -2,6 +2,7 @@ output3D/*
 output3D*
 conn.py
 data.osm
+data_old.osm
 
 tmp/*
 log/*
