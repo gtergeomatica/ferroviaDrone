@@ -14,7 +14,7 @@ import logging
 
 logging.basicConfig(
     format='%(asctime)s\t%(levelname)s\t%(message)s',
-    #filename='log/path3d.log',   #mancano permessi
+    filename='log/path3d.log',
     level=logging.INFO)
 
 logging.info('*'*20 + ' NUOVA ESECUZIONE ' + '*'*20)
@@ -317,17 +317,21 @@ def main():
     
     # Export the 3D feature depending on required format
     logging.info('Exporting results')
-    if ffile == 'csv':
-        gscript.run_command('v.to.points', input=tmp["line3d"], type='line', output=tmp["point3d"], use='vertex', quiet=True)
-        gscript.run_command('v.out.ascii', input=tmp["point3d"], type='point', output='{}/output3d.csv'.format(outdir), format='point', separator='comma', flags='c', overwrite=True, quiet=True)
-    elif ffile == 'kml':
-        gscript.run_command('v.out.ogr', input=tmp["line3d"], output='{}/output3d.kml'.format(outdir) , format='KML', overwrite=True, quiet=True)
-    elif ffile == 'gml':
-        gscript.run_command('v.out.ogr', input=tmp["line3d"], output='{}/output3d.gml'.format(outdir), format='GML', overwrite=True, quiet=True)
-    elif ffile == 'geojson':
-        gscript.run_command('v.out.ogr', input=tmp["line3d"], output='{}/output3d.geojson'.format(outdir), format='GeoJSON', overwrite=True, quiet=True)
-    else:
-        gscript.run_command('v.out.ogr', input=tmp["line3d"], output='{}/output3d.shp'.format(outdir), format='ESRI_Shapefile', overwrite=True, quiet=True)
+    try:
+        if ffile == 'csv':
+            gscript.run_command('v.to.points', input=tmp["line3d"], type='line', output=tmp["point3d"], use='vertex', quiet=True)
+            gscript.run_command('v.out.ascii', input=tmp["point3d"], type='point', output='{}/output3d.csv'.format(outdir), format='point', separator='comma', flags='c', overwrite=True, quiet=True)
+        elif ffile == 'kml':
+            gscript.run_command('v.out.ogr', input=tmp["line3d"], output='{}/output3d.kml'.format(outdir) , format='KML', overwrite=True, quiet=True)
+        elif ffile == 'gml':
+            gscript.run_command('v.out.ogr', input=tmp["line3d"], output='{}/output3d.gml'.format(outdir), format='GML', overwrite=True, quiet=True)
+        elif ffile == 'geojson':
+            gscript.run_command('v.out.ogr', input=tmp["line3d"], output='{}/output3d.geojson'.format(outdir), format='GeoJSON', overwrite=True, quiet=True)
+        else:
+            gscript.run_command('v.out.ogr', input=tmp["line3d"], output='{}/output3d.shp'.format(outdir), format='ESRI_Shapefile', overwrite=True, quiet=True)
+    except CalledModuleError as e3:
+        logging.error(e3)
+        os._exit(1)
     
     # Create a zip file with the final output
     logging.info('Preparing the zip file for download')
@@ -343,8 +347,10 @@ def main():
                        zipObj.write(filePath, basename(filePath))
         else:    
             logging.error('the {} directory is empty'.format(outdir))
+            os._exit(1)
     else:
         logging.error('the {} directory does not exist'.format(outdir))
+        os._exit(1)
 
                
     # Remove unuseful file like the geopackage adn the tmp file from the grass mapset
