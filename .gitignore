@@ -5,4 +5,6 @@ data.osm
 data_old.osm
 
 tmp/*
+!tmp/.gitkeep
 log/*
+!log/.gitkeep
