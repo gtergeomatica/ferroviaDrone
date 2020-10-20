@@ -1,5 +1,5 @@
-output3D/*
-output3D*
+output3d/*
+!output3d/.gitkeep
 conn.py
 data.osm
 data_old.osm
